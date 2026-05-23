@@ -12,6 +12,48 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Optimasi Tampilan HP (Mobile Responsiveness) */
+        @media (max-width: 768px) {
+            .navbar-top .nav-links { display: none; }
+            .navbar-top { padding: 10px; }
+            .grid { grid-template-columns: 1fr !important; padding: 10px; }
+            .card { margin-bottom: 15px; }
+            .chart-container { height: 220px !important; }
+            .main-content { padding-bottom: 80px; }
+            /* Menu Navigasi Bawah khusus HP */
+            .mobile-bottom-bar {
+                display: flex; position: fixed; bottom: 0; left: 0; right: 0; 
+                background: #0b0e11; border-top: 1px solid #2b3139; z-index: 1000;
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+            .mobile-bottom-bar .nav-link {
+                flex: 1; text-align: center; padding: 12px 0; font-size: 10px; 
+                display: flex; flex-direction: column; align-items: center; gap: 4px; color: #848e9c; cursor: pointer;
+            }
+            .mobile-bottom-bar .nav-link.active { color: #FCD535; }
+            .app-footer { bottom: 65px; } 
+            .binance-row { flex-direction: column; gap: 15px !important; }
+        }
+        @media (min-width: 769px) { .mobile-bottom-bar { display: none; } }
+        
+        /* Tema Binance Futures Portofolio */
+        .binance-panel { background: #181a20; border: 1px solid #2b3139; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        .binance-val-lg { font-size: 32px; font-weight: 700; color: #EAECEF; font-family: 'JetBrains Mono', monospace; line-height: 1.2; margin-top: 4px; }
+        .binance-val-sm { font-size: 16px; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: #EAECEF; margin-top: 4px; }
+        .binance-label { font-size: 13px; color: #848E9C; font-weight: 500; }
+        .binance-row { display: flex; gap: 40px; flex-wrap: wrap; margin-top: 20px; border-top: 1px solid #2b3139; padding-top: 20px; }
+        .binance-col { display: flex; flex-direction: column; }
+        
+        .b-tabs { display: flex; gap: 20px; border-bottom: 1px solid #2b3139; margin-bottom: 15px; }
+        .b-tab { padding: 10px 0; font-size: 14px; font-weight: 600; color: #848E9C; cursor: pointer; position: relative; }
+        .b-tab.active { color: #FCD535; }
+        .b-tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 3px; background: #FCD535; border-radius: 3px 3px 0 0; }
+        
+        .table-wrapper table { width: 100%; text-align: left; border-collapse: collapse; white-space: nowrap; }
+        .table-wrapper th { color: #848e9c; font-size: 12px; font-weight: 500; padding: 12px 10px; border-bottom: 1px solid #2b3139; }
+        .table-wrapper td { color: #eaecef; font-size: 12px; padding: 12px 10px; border-bottom: 1px solid #2b3139; font-family: 'JetBrains Mono', monospace; }
+    </style>
 </head>
 <body>
     <div id="zavana-setup-overlay" class="hidden">
@@ -107,52 +149,56 @@
 
         <div id="page-report" class="page">
             <div class="server-warning">
-                FRONTEND ENGINE CONNECTED. UNTUK BERJALAN 24/7 SAAT PC MATI, PORT LOGIC AUTO-ENGINE INI KE NODE.JS HEADLESS VPS.
+                PORTFOLIO SYNCRONIZED. MODE: <span id="syncModeText" style="color:var(--warning)">PAPER TRADING (LOCAL)</span>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap:wrap; gap:10px;">
-                <h2 style="font-weight:500; margin:0; font-size:24px;">Futures Portfolio & Margin</h2>
-                <select id="reportTimeFilter" style="width: auto; margin:0; padding: 6px 12px; background: var(--bg-hover);" onchange="renderReportDashboard()">
-                    <option value="1">1 Hari Terakhir</option>
-                    <option value="7">7 Hari Terakhir</option>
-                    <option value="30">1 Bulan Terakhir</option>
-                    <option value="all" selected>All Time</option>
-                </select>
+            
+            <!-- Binance Style Header -->
+            <div class="binance-panel">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <div class="binance-label">Estimated Margin Balance</div>
+                        <div class="binance-val-lg" id="repEquity">0.00 <span style="font-size:16px; color:#848e9c;">USD</span></div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div class="binance-label">Margin Ratio</div>
+                        <div class="binance-val-sm" id="repMarginRatio" style="color:var(--warning);">0.00%</div>
+                    </div>
+                </div>
+                
+                <div class="binance-row">
+                    <div class="binance-col">
+                        <span class="binance-label">Wallet Balance</span>
+                        <span class="binance-val-sm" id="repWalletBalance">0.00</span>
+                    </div>
+                    <div class="binance-col">
+                        <span class="binance-label">Unrealized PNL</span>
+                        <span class="binance-val-sm profit" id="repUnrealizedPnl">0.00</span>
+                    </div>
+                    <div class="binance-col">
+                        <span class="binance-label">Available for Order</span>
+                        <span class="binance-val-sm" id="repAvailBalance">0.00</span>
+                    </div>
+                </div>
             </div>
 
-            <div class="report-grid">
-                <div class="metric-card" style="border-color:var(--quantum-cyan);">
-                    <div class="metric-title" style="color:var(--quantum-cyan);">Equity (USDT)</div>
-                    <div class="metric-value" id="repEquity">0.00</div>
+            <!-- Tab Menu & Posisi Terbuka -->
+            <div class="binance-panel" style="padding-top: 10px;">
+                <div class="b-tabs" style="justify-content:space-between; align-items:center;">
+                    <div style="display:flex; gap:20px;">
+                        <div class="b-tab active">Positions & Metrics</div>
+                    </div>
+                    <select id="reportTimeFilter" style="padding: 6px; background: var(--bg-hover); color:#fff; border:1px solid #2b3139; border-radius:4px; font-size:11px;" onchange="renderReportDashboard()">
+                        <option value="1">1D History</option>
+                        <option value="7">7D History</option>
+                        <option value="all" selected>All Time</option>
+                    </select>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-title">Available Balance</div>
-                    <div class="metric-value" id="repAvailBalance">0.00</div>
+                
+                <div style="display:flex; gap:20px; margin-bottom: 20px;">
+                    <div class="binance-col"><span class="binance-label">Total Trades</span><span class="binance-val-sm" id="repTotalTrades">0</span></div>
+                    <div class="binance-col"><span class="binance-label">Win Rate</span><span class="binance-val-sm" id="repWinRate" style="color:var(--quantum-cyan);">0.0%</span></div>
+                    <div class="binance-col"><span class="binance-label">Realized PNL</span><span class="binance-val-sm loss" id="repRealizedPnl">0.00</span></div>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-title">Used Margin</div>
-                    <div class="metric-value" id="repUsedMargin">0.00</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Unrealized PNL</div>
-                    <div class="metric-value profit" id="repUnrealizedPnl">0.00</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Margin Ratio</div>
-                    <div class="metric-value" id="repMarginRatio">0.00%</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Realized PNL</div>
-                    <div class="metric-value loss" id="repRealizedPnl">0.00</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Win Rate</div>
-                    <div class="metric-value" id="repWinRate">0.0%</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Total Trades</div>
-                    <div class="metric-value" id="repTotalTrades">0</div>
-                </div>
-            </div>
 
             <div class="report-grid">
                 <div class="metric-card">
@@ -181,14 +227,13 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Pair</th>
-                            <th>Size</th>
+                            <th>Symbol</th>
+                            <th>Size / Side</th>
                             <th>Entry</th>
                             <th>Mark Price</th>
-                            <th>Liquidation</th>
                             <th>Margin %</th>
                             <th>Margin USD</th>
-                            <th>PNL</th>
+                            <th>PNL (ROE%)</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -230,6 +275,18 @@
             </div>
         </div>
     </main>
+
+    <!-- Bottom Bar untuk HP -->
+    <div class="mobile-bottom-bar">
+        <div class="nav-link active" onclick="showPage('dashboard', this)">
+            <span style="font-size:18px;">📈</span><span>Dashboard</span></div>
+        <div class="nav-link" onclick="showPage('screener', this)">
+            <span style="font-size:18px;">🔍</span><span>Matrix</span></div>
+        <div class="nav-link" onclick="showPage('report', this)">
+            <span style="font-size:18px;">💼</span><span>Futures</span></div>
+        <div class="nav-link" onclick="showPage('settings', this)">
+            <span style="font-size:18px;">⚙️</span><span>Settings</span></div>
+    </div>
 
     <div class="app-footer">
         <div class="health-indicator"><div id="healthDot" class="health-dot bad"></div><span id="healthText" style="color:var(--danger);">SYNC: MENUNGGU</span></div>

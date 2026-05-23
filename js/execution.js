@@ -62,6 +62,30 @@ const AutoEngine = {
 
         this.syncPositions();
         this.updateEquity(); 
+
+        // Auto-Sync Data Saldo dari Server Node.js (Binance) Setiap 5 Detik
+        setInterval(() => {
+            if (this.mode === 'LIVE') this.syncLiveAccount();
+        }, 5000);
+        if (this.mode === 'LIVE') this.syncLiveAccount();
+    },
+
+    async syncLiveAccount() {
+        const url = localStorage.getItem('zavana_webhook_url');
+        const secret = localStorage.getItem('zavana_webhook_secret');
+        if (!url || !secret) return;
+        try {
+            const balanceUrl = url.replace('/webhook', '/api/balance');
+            const res = await fetch(balanceUrl, { headers: { 'Authorization': secret } });
+            if (res.ok) {
+                const data = await res.json();
+                this.state.balance = data.totalWalletBalance;
+                this.state.unrealizedPnl = data.totalUnrealizedProfit;
+                this.state.availableBalance = data.availableBalance;
+                this.state.equity = data.totalWalletBalance + data.totalUnrealizedProfit;
+                this.updateUI();
+            }
+        } catch (e) {}
     },
 
     saveState() {
@@ -124,10 +148,13 @@ const AutoEngine = {
             }
         }
         
-        this.state.unrealizedPnl = totalUnrealized;
+        // Jika LIVE, gunakan data saldo Binance murni, jangan hitungan lokal
+        if (this.mode !== 'LIVE') {
+            this.state.unrealizedPnl = totalUnrealized;
+            this.state.equity = this.state.balance + totalUnrealized;
+            this.state.availableBalance = this.state.balance - currentUsedMargin; 
+        }
         this.state.usedMargin = currentUsedMargin;
-        this.state.equity = this.state.balance + totalUnrealized;
-        this.state.availableBalance = this.state.balance - currentUsedMargin; 
         
         if (this.state.availableBalance < 0) this.state.availableBalance = 0;
         if (this.state.equity > this.state.peakEquity) this.state.peakEquity = this.state.equity;
@@ -433,6 +460,12 @@ const AutoEngine = {
         const balEl = document.getElementById('navBalanceDisplay');
         if (balEl) balEl.textContent = `${this.state.equity.toFixed(2)} USDT`;
         if (typeof renderReportDashboard === 'function') renderReportDashboard();
+
+        const syncText = document.getElementById('syncModeText');
+        if (syncText) {
+            syncText.textContent = this.mode === 'LIVE' ? 'LIVE BINANCE (SYNCED)' : 'PAPER TRADING (LOCAL)';
+            syncText.style.color = this.mode === 'LIVE' ? 'var(--danger)' : 'var(--warning)';
+        }
     }
 };
 

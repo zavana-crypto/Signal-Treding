@@ -275,17 +275,18 @@ window.renderReportDashboard = function() {
     const available = AutoEngine.state.availableBalance || 0;
     const used = AutoEngine.state.usedMargin || 0;
     const unrealized = AutoEngine.state.unrealizedPnl || 0;
-    const marginRatio = used > 0 ? `${((used / equity) * 100).toFixed(1)}%` : '0.0%';
+        const walletBal = AutoEngine.state.balance || 0;
+        const marginRatio = equity > 0 ? `${((used / equity) * 100).toFixed(2)}%` : '0.00%';
     const totalTrades = AutoEngine.state.metrics.totalTrades || 0;
     const winRate = totalTrades ? ((AutoEngine.state.metrics.winningTrades / totalTrades) * 100).toFixed(1) : '0.0';
     const realized = (AutoEngine.state.metrics.totalProfitUsd || 0) - (AutoEngine.state.metrics.totalLossUsd || 0);
 
-    document.getElementById('repEquity').textContent = formatPrecision(equity);
-    document.getElementById('repAvailBalance').textContent = formatPrecision(available);
-    document.getElementById('repUsedMargin').textContent = formatPrecision(used);
-    document.getElementById('repUnrealizedPnl').textContent = `${unrealized >= 0 ? '+' : ''}${formatPrecision(unrealized)}`;
+        const repEq = document.getElementById('repEquity'); if(repEq) repEq.innerHTML = `${formatPrecision(equity)} <span style="font-size:16px; color:#848e9c;">USD</span>`;
+        const repWal = document.getElementById('repWalletBalance'); if(repWal) repWal.textContent = formatPrecision(walletBal);
+        const repUnr = document.getElementById('repUnrealizedPnl'); if(repUnr) { repUnr.textContent = `${unrealized >= 0 ? '+' : ''}${formatPrecision(unrealized)}`; repUnr.className = `binance-val-sm ${unrealized >= 0 ? 'profit' : 'loss'}`; }
+        const repAvail = document.getElementById('repAvailBalance'); if(repAvail) repAvail.textContent = formatPrecision(available);
     document.getElementById('repMarginRatio').textContent = marginRatio;
-    document.getElementById('repRealizedPnl').textContent = `${realized >= 0 ? '+' : ''}${formatPrecision(realized)}`;
+        const repReal = document.getElementById('repRealizedPnl'); if(repReal) { repReal.textContent = `${realized >= 0 ? '+' : ''}${formatPrecision(realized)}`; repReal.className = `binance-val-sm ${realized >= 0 ? 'profit' : 'loss'}`; }
     document.getElementById('repWinRate').textContent = `${winRate}%`;
     document.getElementById('repTotalTrades').textContent = totalTrades;
 
@@ -308,16 +309,16 @@ window.renderReportDashboard = function() {
             const mark = pos.markPrice || analysisResults.get(sym)?.price || pos.entry;
             const pnl = pos.type === 'SELL' ? (pos.entry - mark) * pos.size : (mark - pos.entry) * pos.size;
             const marginPct = pos.marginUsd ? `${((pos.marginUsd / equity) * 100).toFixed(2)}%` : '0.00%';
+                const roe = pos.marginUsd ? ((pnl / pos.marginUsd) * 100).toFixed(2) : '0.00';
             activeHtml += `
                 <tr>
                     <td>${sym}</td>
                     <td>${formatPrecision(pos.size)} ${pos.type === 'SELL' ? 'SELL' : 'BUY'}</td>
                     <td>${formatPrecision(pos.entry)}</td>
                     <td>${formatPrecision(mark)}</td>
-                    <td>${pos.liquidation || 'N/A'}</td>
                     <td>${marginPct}</td>
                     <td>${formatPrecision(pos.marginUsd || 0)}</td>
-                    <td class="${pnl >= 0 ? 'profit' : 'loss'}">${pnl >= 0 ? '+' : ''}${formatPrecision(pnl)}</td>
+                        <td class="${pnl >= 0 ? 'profit' : 'loss'}">${pnl >= 0 ? '+' : ''}${formatPrecision(pnl)} <br><span style="font-size:10px;">(${roe}%)</span></td>
                     <td><button class="btn-pos clear" onclick="clearPos('${sym}')">CLOSE</button></td>
                 </tr>`;
         });
