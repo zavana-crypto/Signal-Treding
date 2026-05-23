@@ -32,6 +32,32 @@ window.initAudioContext = function() {
     }
 };
 
+window.playAlertSound = function(type) {
+    if (!audioCtx) return; // Suara tidak akan diputar jika belum diaktifkan
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        if (type === 'OPEN') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Nada Naik (Buka)
+            osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1); 
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'CLOSE') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1760, audioCtx.currentTime); // Nada Turun (Tutup/Profit)
+            osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+        }
+    } catch(e) {}
+};
+
 window.toggleWakeLock = async function() {
     try {
         if (!wakeLock) {

@@ -13,6 +13,8 @@ const AutoEngine = {
         unrealizedPnl: 0.0,
         equity: 100.0,
         peakEquity: 100.0,
+        dailyLossDate: new Date().toLocaleDateString('id-ID'),
+        dailyLossUsd: 0.0,
         allocated: { scalp: 25, intraday: 25, swing: 30, hold: 20 },
         history: [],
         cooldowns: {},
@@ -230,6 +232,7 @@ const AutoEngine = {
         } else {
             showToast(`🤖 [EXECUTED] ${type} ${sym} @ ${formatPrecision(price)}<br>Size: ${positionSize.toFixed(4)} | Lev: ${safeLeverage}x | Margin: $${marginRequired.toFixed(2)}`);
         }
+        if (typeof playAlertSound === 'function') playAlertSound('OPEN');
         renderPosBox(sym);
     },
 
@@ -307,6 +310,20 @@ const AutoEngine = {
             this.state.metrics.totalLossUsd += Math.abs(realizedPnlUsd);
         }
 
+        // REVISI: Sistem Pembatasan Kerugian Harian (Max Daily Drawdown)
+        const today = new Date().toLocaleDateString('id-ID');
+        if (this.state.dailyLossDate !== today) { 
+            this.state.dailyLossDate = today; 
+            this.state.dailyLossUsd = 0.0; 
+        }
+        if (realizedPnlUsd < 0) {
+            this.state.dailyLossUsd += Math.abs(realizedPnlUsd);
+            if (this.state.dailyLossUsd >= 15.0) { // Jika rugi mencapai $15 dalam sehari
+                if (typeof toggleAutoTrading === 'function') toggleAutoTrading(false); // Matikan Saklar Auto Trade
+                showToast("🛑 BATAS RUGI HARIAN ($15) TERCAPAI! Bot dimatikan untuk melindungi modal.");
+            }
+        }
+
         this.state.history.push({
             time: new Date().toLocaleString('id-ID'), sym: sym, type: pos.type, entry: pos.entry,
             exit: exitPrice, size: pos.size, pnlUsd: realizedPnlUsd, roiPct: (realizedPnlUsd / pos.marginUsd) * 100,
@@ -331,6 +348,7 @@ const AutoEngine = {
         } else {
             showToast(`🤖 [CLOSED] ${sym} (${reason}). Realized: <b style="color:${realizedPnlUsd >= 0 ? 'var(--binance-green)' : 'var(--binance-red)'}">${realizedPnlUsd > 0 ? '+' : ''}${realizedPnlUsd.toFixed(2)} USDT</b>`);
         }
+        if (typeof playAlertSound === 'function') playAlertSound('CLOSE');
         renderPosBox(sym);
     },
 
