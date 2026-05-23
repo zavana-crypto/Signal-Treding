@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -218,6 +218,10 @@
                 <input type="text" id="coinInput" placeholder="BTCUSDT, ETHUSDT, SOLUSDT">
                 <label>Gemini API Key</label>
                 <input type="text" id="geminiApiKey" placeholder="Masukkan Gemini API Key kalau ada">
+                <label>Webhook URL Server (Node.js / VPS)</label>
+                <input type="text" id="webhookUrl" placeholder="http://localhost:3000/webhook">
+                <label>Webhook Password (Secret)</label>
+                <input type="password" id="webhookSecret" placeholder="Masukkan password server">
                 <button class="btn-primary" onclick="saveSettings()">Simpan Pengaturan</button>
             </div>
         </div>

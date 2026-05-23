@@ -329,12 +329,20 @@ window.renderReportDashboard = function() {
 function initSettingsForm() { 
     document.getElementById('coinInput').value = COINS.join(', '); 
     document.getElementById('geminiApiKey').value = localStorage.getItem('zavana_gemini_key') || ""; 
+    document.getElementById('webhookUrl').value = localStorage.getItem('zavana_webhook_url') || ""; 
+    document.getElementById('webhookSecret').value = localStorage.getItem('zavana_webhook_secret') || ""; 
 }
 
 window.saveSettings = function() {
     try {
         const inputKey = document.getElementById('geminiApiKey').value.trim();
+        const webhookUrl = document.getElementById('webhookUrl').value.trim();
+        const webhookSecret = document.getElementById('webhookSecret').value.trim();
+        
         if (inputKey) localStorage.setItem('zavana_gemini_key', inputKey); else localStorage.removeItem('zavana_gemini_key');
+        if (webhookUrl) localStorage.setItem('zavana_webhook_url', webhookUrl); else localStorage.removeItem('zavana_webhook_url');
+        if (webhookSecret) localStorage.setItem('zavana_webhook_secret', webhookSecret); else localStorage.removeItem('zavana_webhook_secret');
+
         const raw = document.getElementById('coinInput').value;
         const newCoins = raw.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
         if (JSON.stringify(COINS) !== JSON.stringify(newCoins)) {

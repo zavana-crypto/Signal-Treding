@@ -1,0 +1,3 @@
+# Abaikan folder server agar API Key Binance tidak bocor ke publik!
+ZAVANA SERVER/
+node_modules/

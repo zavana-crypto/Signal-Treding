@@ -45,6 +45,19 @@ const AutoEngine = {
             }
         }, 100);
 
+        const savedMode = localStorage.getItem('zavana_trading_mode');
+        if (savedMode) {
+            this.mode = savedMode;
+            setTimeout(() => {
+                if (this.mode === 'LIVE') {
+                    document.getElementById('currentModeLabel').textContent = 'LIVE TRADING';
+                    document.getElementById('currentModeLabel').style.color = 'var(--danger)';
+                    const btn = document.getElementById('modeToggleBtn');
+                    if (btn) { btn.textContent = 'LIVE MODE'; btn.style.borderColor = 'var(--danger)'; btn.style.color = 'var(--danger)'; }
+                }
+            }, 500);
+        }
+
         this.syncPositions();
         this.updateEquity(); 
     },
@@ -52,6 +65,19 @@ const AutoEngine = {
     saveState() {
         localStorage.setItem('zavana_portfolio_state_v4', JSON.stringify(this.state));
         this.updateUI();
+    },
+
+    sendWebhook(payload) {
+        if (this.mode !== 'LIVE') return;
+        const url = localStorage.getItem('zavana_webhook_url');
+        const secret = localStorage.getItem('zavana_webhook_secret');
+        if (!url) return;
+
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': secret },
+            body: JSON.stringify(payload)
+        }).catch(e => console.error("Webhook error:", e));
     },
 
     resetPaperAccount() {
@@ -164,9 +190,8 @@ const AutoEngine = {
         if (safeLeverage > 50) safeLeverage = 50; 
         if (safeLeverage < 1) safeLeverage = 1;
 
-        let marginRequired = riskLimitUsd / (slDistancePct * safeLeverage);
-        const bucketCapitalLimit = (this.state.equity * (this.state.allocated[bucket] / 100)) * 0.8; 
-        if (marginRequired > bucketCapitalLimit) marginRequired = bucketCapitalLimit;
+        // REVISI: Fixed Margin $10 (Modal Maksimal $10 per posisi untuk keamanan Live Test)
+        let marginRequired = 10.0;
         
         if (marginRequired > this.state.availableBalance) {
             marginRequired = this.state.availableBalance * 0.95; 
@@ -181,19 +206,31 @@ const AutoEngine = {
         this.state.availableBalance -= marginRequired;
         this.state.usedMargin += marginRequired;
         
-        if (this.mode === 'PAPER') {
-            userPositions[sym] = {
-                isAuto: true, type: type, entry: price, size: positionSize, positionValue: positionValueUsd,
-                sl: sl, tp: tp, leverage: safeLeverage, margin: 'Isolated', marginUsd: marginRequired,
-                liqPrice: liqPrice, unrealizedPnl: 0, roi: 0, bucket: bucket, time: Date.now(),
-                highestPrice: price, lowestPrice: price, atrAtEntry: atr
-            };
-            this.syncPositions();
-            this.updateEquity(); 
-            this.saveState();
+        // REVISI: Frontend tetap mencatat posisi untuk kalkulasi Trailing Stop secara lokal
+        userPositions[sym] = {
+            isAuto: true, type: type, entry: price, size: positionSize, positionValue: positionValueUsd,
+            sl: sl, tp: tp, leverage: safeLeverage, margin: 'Isolated', marginUsd: marginRequired,
+            liqPrice: liqPrice, unrealizedPnl: 0, roi: 0, bucket: bucket, time: Date.now(),
+            highestPrice: price, lowestPrice: price, atrAtEntry: atr
+        };
+        this.syncPositions();
+        this.updateEquity(); 
+        this.saveState();
+        
+        if (this.mode === 'LIVE') {
+            showToast(`🚀 [LIVE SIGNAL SENT] OPEN ${type} ${sym} @ ${formatPrecision(price)}`);
+            this.sendWebhook({
+                action: 'OPEN',
+                symbol: sym,
+                type: type,
+                price: price,
+                leverage: safeLeverage,
+                marginUsd: marginRequired
+            });
+        } else {
             showToast(`🤖 [EXECUTED] ${type} ${sym} @ ${formatPrecision(price)}<br>Size: ${positionSize.toFixed(4)} | Lev: ${safeLeverage}x | Margin: $${marginRequired.toFixed(2)}`);
-            renderPosBox(sym);
         }
+        renderPosBox(sym);
     },
 
     onTick(sym, currentPrice) {
@@ -282,7 +319,18 @@ const AutoEngine = {
         this.updateEquity(); 
         this.saveState();
 
-        showToast(`🤖 [CLOSED] ${sym} (${reason}). Realized: <b style="color:${realizedPnlUsd >= 0 ? 'var(--binance-green)' : 'var(--binance-red)'}">${realizedPnlUsd > 0 ? '+' : ''}${realizedPnlUsd.toFixed(2)} USDT</b>`);
+        if (this.mode === 'LIVE') {
+            showToast(`🚀 [LIVE SIGNAL SENT] CLOSE ${sym} (${reason})`);
+            this.sendWebhook({
+                action: 'CLOSE',
+                symbol: sym,
+                type: pos.type,
+                exitPrice: exitPrice,
+                reason: reason
+            });
+        } else {
+            showToast(`🤖 [CLOSED] ${sym} (${reason}). Realized: <b style="color:${realizedPnlUsd >= 0 ? 'var(--binance-green)' : 'var(--binance-red)'}">${realizedPnlUsd > 0 ? '+' : ''}${realizedPnlUsd.toFixed(2)} USDT</b>`);
+        }
         renderPosBox(sym);
     },
 
@@ -302,8 +350,28 @@ window.toggleAutoTrading = function(isActive) {
 
 window.toggleTradingMode = function() {
     if (AutoEngine.mode === 'PAPER') {
-        alert("Sistem Manajemen Portofolio saat ini mengunci ke mode Paper Trading (Simulasi Compounding). Mode LIVE TRADING membutuhkan VPS Node.js eksternal agar kunci API Binance aman.");
+        const url = localStorage.getItem('zavana_webhook_url');
+        if (!url) {
+            alert("Harap isi Webhook URL di menu Settings terlebih dahulu untuk mengaktifkan LIVE TRADING.");
+            return;
+        }
+        if (confirm("PERINGATAN: Anda akan beralih ke LIVE TRADING. Sinyal akan dikirim ke server Node.js Anda untuk dieksekusi di Binance menggunakan dana sungguhan. Lanjutkan?")) {
+            AutoEngine.mode = 'LIVE';
+            document.getElementById('currentModeLabel').textContent = 'LIVE TRADING';
+            document.getElementById('currentModeLabel').style.color = 'var(--danger)';
+            const btn = document.getElementById('modeToggleBtn');
+            if (btn) { btn.textContent = 'LIVE MODE'; btn.style.borderColor = 'var(--danger)'; btn.style.color = 'var(--danger)'; }
+            showToast("⚠️ BERALIH KE LIVE TRADING MODE");
+        }
+    } else {
+        AutoEngine.mode = 'PAPER';
+        document.getElementById('currentModeLabel').textContent = 'PAPER TRADING';
+        document.getElementById('currentModeLabel').style.color = 'var(--warning)';
+        const btn = document.getElementById('modeToggleBtn');
+        if (btn) { btn.textContent = 'PAPER MODE'; btn.style.borderColor = 'var(--warning)'; btn.style.color = 'var(--warning)'; }
+        showToast("✅ KEMBALI KE PAPER TRADING");
     }
+    localStorage.setItem('zavana_trading_mode', AutoEngine.mode);
 };
 
 window.toggleOrderInput = function(sym) {
