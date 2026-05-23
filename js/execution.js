@@ -167,6 +167,10 @@ const AutoEngine = {
         if (this.state.availableBalance < 2) return;
 
         if (res.signal === 'BUY' || res.signal === 'SELL') {
+            // REVISI: Batasi Maksimal 3 Posisi Bersamaan
+            const activeAutoCount = Object.values(userPositions).filter(p => p.isAuto).length;
+            if (activeAutoCount >= 3) return; // Jangan buka posisi baru jika sudah ada 3 koin aktif
+
             // REVISI: Filter Akhir Pekan (Sabtu = 6, Minggu = 0)
             const day = new Date().getDay();
             const isWeekend = (day === 0 || day === 6);
