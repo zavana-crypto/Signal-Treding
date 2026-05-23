@@ -5,6 +5,7 @@ const AutoEngine = {
     isActive: true,
     mode: 'PAPER', 
     maxRiskPerTradePct: 0.02, 
+    _liveConnected: null,
     
     state: {
         balance: 100.0,
@@ -77,16 +78,37 @@ const AutoEngine = {
         if (!url || !secret) return;
         try {
             const balanceUrl = url.replace('/webhook', '/api/balance');
-            const res = await fetch(balanceUrl, { headers: { 'Authorization': secret } });
+            // Tambahan header bypass untuk Ngrok / LocalTunnel agar tidak diblokir
+            const res = await fetch(balanceUrl, { headers: { 'Authorization': secret, 'Bypass-Tunnel-Reminder': 'true', 'ngrok-skip-browser-warning': 'true' } });
             if (res.ok) {
                 const data = await res.json();
-                this.state.balance = data.totalWalletBalance;
-                this.state.unrealizedPnl = data.totalUnrealizedProfit;
-                this.state.availableBalance = data.availableBalance;
-                this.state.equity = data.totalWalletBalance + data.totalUnrealizedProfit;
+                this.state.balance = data.totalWalletBalance || 0;
+                this.state.unrealizedPnl = data.totalUnrealizedProfit || 0;
+                this.state.availableBalance = data.availableBalance || 0;
+                this.state.equity = this.state.balance + this.state.unrealizedPnl;
+                
+                if (data.activePositions) this.state.realBinancePositions = data.activePositions;
+
                 this.updateUI();
+                if (this._liveConnected !== true) {
+                    this._liveConnected = true;
+                    showToast("✅ KONEKSI BINANCE BERHASIL! Saldo Sinkron.");
+                }
+            } else {
+                const errText = await res.text();
+                console.error("Gagal Sync Saldo:", errText);
+                if (this._liveConnected !== false) {
+                    this._liveConnected = false;
+                    showToast("❌ KONEKSI BINANCE DITOLAK: Cek API Key atau IP Address Anda.");
+                }
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error("Koneksi API Saldo Gagal:", e.message);
+            if (this._liveConnected !== false) {
+                this._liveConnected = false;
+                showToast("❌ SERVER MATI: Pastikan Node.js menyala & Webhook URL benar.");
+            }
+        }
     },
 
     saveState() {
@@ -102,7 +124,7 @@ const AutoEngine = {
 
         fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': secret },
+            headers: { 'Content-Type': 'application/json', 'Authorization': secret, 'Bypass-Tunnel-Reminder': 'true', 'ngrok-skip-browser-warning': 'true' },
             body: JSON.stringify(payload)
         }).catch(e => console.error("Webhook error:", e));
     },
@@ -494,6 +516,7 @@ window.toggleTradingMode = function() {
             const btn = document.getElementById('modeToggleBtn');
             if (btn) { btn.textContent = 'LIVE MODE'; btn.style.borderColor = 'var(--danger)'; btn.style.color = 'var(--danger)'; }
             showToast("⚠️ BERALIH KE LIVE TRADING MODE");
+            AutoEngine.syncLiveAccount(); // Tarik saldo seketika!
         }
     } else {
         AutoEngine.mode = 'PAPER';
@@ -549,7 +572,14 @@ window.setPos = function(sym, actionType) {
 
 window.clearPos = function(sym) {
         const pos = userPositions[sym];
-        if (!pos) return;
+        if (!pos) {
+            if (AutoEngine.mode === 'LIVE') {
+                AutoEngine.sendWebhook({ action: 'CLOSE', symbol: sym, type: 'UNKNOWN', exitPrice: 0, reason: 'Remote Close via Web/HP' });
+                showToast(`🚀 [REMOTE] Sinyal CLOSE ${sym} dikirim ke Binance!`);
+                setTimeout(() => AutoEngine.syncLiveAccount(), 2000);
+            }
+            return;
+        }
         const currentPrice = pos.markPrice || (typeof analysisResults !== 'undefined' ? analysisResults.get(sym)?.price : pos.entry) || pos.entry;
         
         // Gunakan mesin AutoEngine untuk menutup agar tercatat di History dan Webhook terkirim

@@ -13,29 +13,12 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <style>
-        /* Optimasi Tampilan HP (Mobile Responsiveness) */
         @media (max-width: 768px) {
-            .navbar-top .nav-links { display: none; }
-            .navbar-top { padding: 10px; }
             .grid { grid-template-columns: 1fr !important; padding: 10px; }
             .card { margin-bottom: 15px; }
             .chart-container { height: 220px !important; }
-            .main-content { padding-bottom: 80px; }
-            /* Menu Navigasi Bawah khusus HP */
-            .mobile-bottom-bar {
-                display: flex; position: fixed; bottom: 0; left: 0; right: 0; 
-                background: #0b0e11; border-top: 1px solid #2b3139; z-index: 1000;
-                padding-bottom: env(safe-area-inset-bottom);
-            }
-            .mobile-bottom-bar .nav-link {
-                flex: 1; text-align: center; padding: 12px 0; font-size: 10px; 
-                display: flex; flex-direction: column; align-items: center; gap: 4px; color: #848e9c; cursor: pointer;
-            }
-            .mobile-bottom-bar .nav-link.active { color: #FCD535; }
-            .app-footer { bottom: 65px; } 
             .binance-row { flex-direction: column; gap: 15px !important; }
         }
-        @media (min-width: 769px) { .mobile-bottom-bar { display: none; } }
         
         /* Tema Binance Futures Portofolio */
         .binance-panel { background: #181a20; border: 1px solid #2b3139; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
@@ -295,18 +278,6 @@
             </div>
         </div>
     </main>
-
-    <!-- Bottom Bar untuk HP -->
-    <div class="mobile-bottom-bar">
-        <div class="nav-link active" onclick="showPage('dashboard', this)">
-            <span style="font-size:18px;">📈</span><span>Dashboard</span></div>
-        <div class="nav-link" onclick="showPage('screener', this)">
-            <span style="font-size:18px;">🔍</span><span>Matrix</span></div>
-        <div class="nav-link" onclick="showPage('report', this)">
-            <span style="font-size:18px;">💼</span><span>Futures</span></div>
-        <div class="nav-link" onclick="showPage('settings', this)">
-            <span style="font-size:18px;">⚙️</span><span>Settings</span></div>
-    </div>
 
     <div class="app-footer">
         <div class="health-indicator"><div id="healthDot" class="health-dot bad"></div><span id="healthText" style="color:var(--danger);">SYNC: MENUNGGU</span></div>

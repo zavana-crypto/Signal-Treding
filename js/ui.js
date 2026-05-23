@@ -303,25 +303,49 @@ window.renderReportDashboard = function() {
     const historyBody = document.getElementById('historyTable');
     if (activeBody) {
         let activeHtml = '';
-        Object.keys(userPositions).forEach(sym => {
-            const pos = userPositions[sym];
-            if (!pos) return;
-            const mark = pos.markPrice || analysisResults.get(sym)?.price || pos.entry;
-            const pnl = pos.type === 'SELL' ? (pos.entry - mark) * pos.size : (mark - pos.entry) * pos.size;
-            const marginPct = pos.marginUsd ? `${((pos.marginUsd / equity) * 100).toFixed(2)}%` : '0.00%';
-                const roe = pos.marginUsd ? ((pnl / pos.marginUsd) * 100).toFixed(2) : '0.00';
-            activeHtml += `
-                <tr>
-                    <td>${sym}</td>
-                    <td>${formatPrecision(pos.size)} ${pos.type === 'SELL' ? 'SELL' : 'BUY'}</td>
-                    <td>${formatPrecision(pos.entry)}</td>
-                    <td>${formatPrecision(mark)}</td>
-                    <td>${marginPct}</td>
-                    <td>${formatPrecision(pos.marginUsd || 0)}</td>
+        
+        // Tampilkan posisi dari Binance langsung jika sedang mode LIVE
+        if (AutoEngine.mode === 'LIVE' && AutoEngine.state.realBinancePositions && AutoEngine.state.realBinancePositions.length > 0) {
+            AutoEngine.state.realBinancePositions.forEach(pos => {
+                const sym = pos.symbol.replace('/', '');
+                const pnl = pos.unrealizedPnl;
+                const marginUsd = pos.isolatedMargin || ((pos.entryPrice * pos.size) / pos.leverage);
+                const marginPct = equity > 0 ? `${((marginUsd / equity) * 100).toFixed(2)}%` : '0.00%';
+                const roe = marginUsd > 0 ? ((pnl / marginUsd) * 100).toFixed(2) : '0.00';
+                
+                activeHtml += `
+                    <tr>
+                        <td>${sym} <span style="background:var(--danger); color:white; font-size:9px; padding:2px 4px; border-radius:2px; font-weight:bold; margin-left:4px;">REAL</span></td>
+                        <td>${formatPrecision(pos.size)} ${pos.type === 'SELL' ? 'SELL' : 'BUY'}</td>
+                        <td>${formatPrecision(pos.entryPrice)}</td>
+                        <td>${formatPrecision(pos.markPrice)}</td>
+                        <td>${marginPct}</td>
+                        <td>${formatPrecision(marginUsd)}</td>
                         <td class="${pnl >= 0 ? 'profit' : 'loss'}">${pnl >= 0 ? '+' : ''}${formatPrecision(pnl)} <br><span style="font-size:10px;">(${roe}%)</span></td>
-                    <td><button class="btn-pos clear" onclick="clearPos('${sym}')">CLOSE</button></td>
-                </tr>`;
-        });
+                        <td><button class="btn-pos clear" onclick="clearPos('${sym}')">CLOSE</button></td>
+                    </tr>`;
+            });
+        } else {
+            Object.keys(userPositions).forEach(sym => {
+                const pos = userPositions[sym];
+                if (!pos) return;
+                const mark = pos.markPrice || analysisResults.get(sym)?.price || pos.entry;
+                const pnl = pos.type === 'SELL' ? (pos.entry - mark) * pos.size : (mark - pos.entry) * pos.size;
+                const marginPct = pos.marginUsd ? `${((pos.marginUsd / equity) * 100).toFixed(2)}%` : '0.00%';
+                const roe = pos.marginUsd ? ((pnl / pos.marginUsd) * 100).toFixed(2) : '0.00';
+                activeHtml += `
+                    <tr>
+                        <td>${sym}</td>
+                        <td>${formatPrecision(pos.size)} ${pos.type === 'SELL' ? 'SELL' : 'BUY'}</td>
+                        <td>${formatPrecision(pos.entry)}</td>
+                        <td>${formatPrecision(mark)}</td>
+                        <td>${marginPct}</td>
+                        <td>${formatPrecision(pos.marginUsd || 0)}</td>
+                        <td class="${pnl >= 0 ? 'profit' : 'loss'}">${pnl >= 0 ? '+' : ''}${formatPrecision(pnl)} <br><span style="font-size:10px;">(${roe}%)</span></td>
+                        <td><button class="btn-pos clear" onclick="clearPos('${sym}')">CLOSE</button></td>
+                    </tr>`;
+            });
+        }
         activeBody.innerHTML = activeHtml || `<tr><td colspan="9" style="text-align:center;color:var(--text-secondary);">Tidak ada posisi aktif.</td></tr>`;
     }
 
