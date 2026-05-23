@@ -1,0 +1,255 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#0b0e11">
+    <title>ZAVANA - Ockhand Tage Pro (Auto-AI & Portfolio Manager)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="zavana-setup-overlay" class="hidden">
+        <div class="zavana-setup-box">
+            <h2>⚡ ZAVANA Setup</h2>
+            <p>Masukkan <b style="color:#eaecef;">Gemini API Key</b> gratis kamu untuk mengaktifkan fitur AI Analisis.</p>
+            <label>Gemini API Key</label>
+            <input type="text" class="zavana-setup-input" id="zavana-setup-key-input" placeholder="AIzaSy...">
+            <button class="zavana-setup-btn" onclick="zavanaSetupSave()">✅ Simpan & Mulai Dashboard</button>
+            <button class="zavana-setup-skip" onclick="zavanaSetupSkip()">Lewati — AI tidak aktif</button>
+        </div>
+    </div>
+
+    <div id="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <div style="font-family:'JetBrains Mono', monospace; color:var(--text-primary); font-size:14px; font-weight:600;">QUANT ENGINE V3: INITIALIZING...</div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <header class="navbar-top">
+        <div class="brand">ZAVANA<span>Ockhand Tage Pro v3.0 (Portfolio Edition)</span></div>
+        <div class="nav-links">
+            <div class="nav-link active" onclick="showPage('dashboard', this)">Dashboard</div>
+            <div class="nav-link" onclick="showPage('screener', this)">Market Matrix</div>
+            <div class="nav-link" onclick="showPage('report', this)">Kinerja / Portofolio</div>
+            <div class="nav-link" onclick="showPage('settings', this)">Settings</div>
+        </div>
+        <div class="nav-actions">
+            <div style="display:flex; align-items:center; gap:8px; border:1px solid var(--border); padding:4px 8px; border-radius:4px; background:var(--bg-base); font-size:11px;">
+                <span style="font-weight:bold; color:var(--text-secondary);">AUTO TRADE</span>
+                <label class="switch">
+                    <input type="checkbox" id="masterAutoToggle" onchange="toggleAutoTrading(this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <button id="modeToggleBtn" class="action-btn" onclick="toggleTradingMode()" style="border-color: var(--warning); color: var(--warning); font-size:11px; padding:4px 8px;">PAPER MODE</button>
+            <button id="audioInitBtn" class="action-btn audio-btn needed" onclick="initAudioContext()">🔊 INIT AUDIO</button>
+            <button id="wakeLockBtn" class="action-btn wakelock-btn" onclick="toggleWakeLock()">⚡ ACTIVE</button>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div id="page-dashboard" class="page active">
+            <div class="auto-status-bar" id="autoStatusBar" style="display: flex;">
+                <div class="auto-status-left">
+                    <div class="health-dot ok" style="box-shadow: 0 0 10px var(--quantum-cyan); background: var(--quantum-cyan); width:6px; height:6px; border-radius:50%;"></div>
+                    AUTO EXECUTION ACTIVE
+                </div>
+                <div style="font-size: 12px; font-family: 'JetBrains Mono';">Modus: <span id="currentModeLabel" style="color:var(--warning)">PAPER TRADING</span> | Bal: <span id="navBalanceDisplay" style="color:var(--binance-green)">93.30 USDT</span></div>
+            </div>
+
+            <div class="toolbar-container">
+                <div id="strategyLabel" class="strategy-badge">MODE: INTRADAY (1H)</div>
+                <div class="toolbar-group" id="tfToolbar"></div>
+            </div>
+
+            <div class="grid" id="grid"></div>
+
+            <div class="dashboard-header-bar">
+                <h3>📊 Market Overview & Tracker</h3>
+                <button onclick="generateMarketBriefing()" class="action-btn" style="background: var(--quantum-cyan); color: #000; border: none; padding: 8px 16px;">✨ Generate Market Briefing</button>
+            </div>
+
+            <div id="ai-briefing-box">
+                <h4>✨ Gemini API Market Briefing</h4>
+                <div id="ai-briefing-content">Meminta analisis dari Gemini LLM...</div>
+            </div>
+
+            <div class="ai-report-box" id="dynamicMarketAnalysis"></div>
+        </div>
+
+        <div id="page-screener" class="page">
+            <h2 style="font-weight:500; margin-bottom:5px; font-size:24px;">Market Matrix Overview</h2>
+            <p style="color:var(--text-secondary); margin-bottom:20px; font-size:13px;">Analisis probabilitas kemenangan berbasis Volume, SMC, ADX, dan Volatilitas v3.0.</p>
+            <div class="table-wrapper" style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pair</th>
+                            <th>Price</th>
+                            <th>Signal State</th>
+                            <th>Win Prob.</th>
+                            <th>Order Flow</th>
+                            <th>Matrix Advice</th>
+                        </tr>
+                    </thead>
+                    <tbody id="screenerTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="page-report" class="page">
+            <div class="server-warning">
+                FRONTEND ENGINE CONNECTED. UNTUK BERJALAN 24/7 SAAT PC MATI, PORT LOGIC AUTO-ENGINE INI KE NODE.JS HEADLESS VPS.
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap:wrap; gap:10px;">
+                <h2 style="font-weight:500; margin:0; font-size:24px;">Futures Portfolio & Margin</h2>
+                <select id="reportTimeFilter" style="width: auto; margin:0; padding: 6px 12px; background: var(--bg-hover);" onchange="renderReportDashboard()">
+                    <option value="1">1 Hari Terakhir</option>
+                    <option value="7">7 Hari Terakhir</option>
+                    <option value="30">1 Bulan Terakhir</option>
+                    <option value="all" selected>All Time</option>
+                </select>
+            </div>
+
+            <div class="report-grid">
+                <div class="metric-card" style="border-color:var(--quantum-cyan);">
+                    <div class="metric-title" style="color:var(--quantum-cyan);">Equity (USDT)</div>
+                    <div class="metric-value" id="repEquity">0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Available Balance</div>
+                    <div class="metric-value" id="repAvailBalance">0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Used Margin</div>
+                    <div class="metric-value" id="repUsedMargin">0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Unrealized PNL</div>
+                    <div class="metric-value profit" id="repUnrealizedPnl">0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Margin Ratio</div>
+                    <div class="metric-value" id="repMarginRatio">0.00%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Realized PNL</div>
+                    <div class="metric-value loss" id="repRealizedPnl">0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Win Rate</div>
+                    <div class="metric-value" id="repWinRate">0.0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Total Trades</div>
+                    <div class="metric-value" id="repTotalTrades">0</div>
+                </div>
+            </div>
+
+            <div class="report-grid">
+                <div class="metric-card">
+                    <div class="metric-title">Allocasi Scalp</div>
+                    <div class="metric-value" id="allocScalpPct">25%</div>
+                    <div class="portfolio-alloc"><div id="allocBarScalp" class="alloc-bar alloc-scalp" style="width:25%"></div></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Allocasi Intraday</div>
+                    <div class="metric-value" id="allocIntradayPct">25%</div>
+                    <div class="portfolio-alloc"><div id="allocBarIntraday" class="alloc-bar alloc-intraday" style="width:25%"></div></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Allocasi Swing</div>
+                    <div class="metric-value" id="allocSwingPct">30%</div>
+                    <div class="portfolio-alloc"><div id="allocBarSwing" class="alloc-bar alloc-swing" style="width:30%"></div></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Allocasi Hold</div>
+                    <div class="metric-value" id="allocHoldPct">20%</div>
+                    <div class="portfolio-alloc"><div id="allocBarHold" class="alloc-bar alloc-hold" style="width:20%"></div></div>
+                </div>
+            </div>
+
+            <div class="table-wrapper" style="margin-top:20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pair</th>
+                            <th>Size</th>
+                            <th>Entry</th>
+                            <th>Mark Price</th>
+                            <th>Liquidation</th>
+                            <th>Margin %</th>
+                            <th>Margin USD</th>
+                            <th>PNL</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activePositionsTable"></tbody>
+                </table>
+            </div>
+
+            <div class="table-wrapper" style="margin-top:20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Waktu</th>
+                            <th>Pair</th>
+                            <th>Tipe</th>
+                            <th>Leverage</th>
+                            <th>Entry</th>
+                            <th>Exit</th>
+                            <th>PNL</th>
+                            <th>Alasan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="page-settings" class="page">
+            <div class="settings-box">
+                <h2 style="margin-top:0;">Pengaturan</h2>
+                <label>Watchlist Coin (pisahkan dengan koma)</label>
+                <input type="text" id="coinInput" placeholder="BTCUSDT, ETHUSDT, SOLUSDT">
+                <label>Gemini API Key</label>
+                <input type="text" id="geminiApiKey" placeholder="Masukkan Gemini API Key kalau ada">
+                <button class="btn-primary" onclick="saveSettings()">Simpan Pengaturan</button>
+            </div>
+        </div>
+    </main>
+
+    <div class="app-footer">
+        <div class="health-indicator"><div id="healthDot" class="health-dot bad"></div><span id="healthText" style="color:var(--danger);">SYNC: MENUNGGU</span></div>
+        <div style="font-size:11px;">ZAVANA - Ockhand Tage Pro | Dashboard Lokal</div>
+    </div>
+
+    <button id="ai-fab" onclick="toggleChat()">💬</button>
+    <div id="ai-chat-window">
+        <div class="chat-header">
+            <div class="chat-header-title"><span class="dot"></span> Asisten AI</div>
+            <div class="close-chat" onclick="toggleChat(false)">&times;</div>
+        </div>
+        <div id="chatBody" class="chat-body">
+            <div id="typingIndicator" class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div></div>
+        </div>
+        <div class="chat-footer">
+            <input id="chatInput" class="chat-input" placeholder="Ketik pertanyaan...">
+            <button class="chat-send" onclick="sendChatMessage()">➤</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="js/execution.js"></script>
+    <script src="js/chart.js"></script>
+    <script src="js/market.js"></script>
+    <script src="js/signal.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
