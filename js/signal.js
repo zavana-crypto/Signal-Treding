@@ -9,6 +9,25 @@ function calcATRArray(data, period) {
     return results;
 }
 
+function calcRSI(data, period=14) {
+    let rsiArr = new Array(data.length).fill(0);
+    if(data.length <= period) return rsiArr;
+    let gains = 0, losses = 0;
+    for(let i=1; i<=period; i++) {
+        let diff = data[i].close - data[i-1].close;
+        if(diff >= 0) gains += diff; else losses -= diff;
+    }
+    let avgGain = gains / period, avgLoss = losses / period;
+    rsiArr[period] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain/avgLoss)));
+    for(let i=period+1; i<data.length; i++) {
+        let diff = data[i].close - data[i-1].close;
+        avgGain = ((avgGain * (period-1)) + (diff>=0?diff:0)) / period;
+        avgLoss = ((avgLoss * (period-1)) + (diff<0?-diff:0)) / period;
+        rsiArr[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain/avgLoss)));
+    }
+    return rsiArr;
+}
+
 function calcEMA(data, period) {
     let emaArr = new Array(data.length).fill(0), k = 2 / (period + 1), ema = data[0].close;
     for (let i = 0; i < data.length; i++) { ema = (data[i].close - ema) * k + ema; emaArr[i] = ema; }

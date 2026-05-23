@@ -18,7 +18,8 @@ const AutoEngine = {
         allocated: { scalp: 25, intraday: 25, swing: 30, hold: 20 },
         history: [],
         cooldowns: {},
-        metrics: { maxDrawdown: 0, totalTrades: 0, winningTrades: 0, totalProfitUsd: 0, totalLossUsd: 0 }
+        metrics: { maxDrawdown: 0, totalTrades: 0, winningTrades: 0, totalProfitUsd: 0, totalLossUsd: 0 },
+        pausedCoins: {}
     },
 
     init() {
@@ -192,6 +193,9 @@ const AutoEngine = {
         }
 
         if (this.state.availableBalance < 2) return;
+
+        // REVISI: Cek apakah koin sedang di-pause manual
+        if (this.state.pausedCoins && this.state.pausedCoins[sym]) return;
 
         if (res.signal === 'BUY' || res.signal === 'SELL') {
             // REVISI: Batasi Maksimal 3 Posisi Bersamaan
@@ -504,6 +508,15 @@ window.toggleTradingMode = function() {
 
 window.closeAllPositions = function() {
     AutoEngine.closeAllPositions();
+};
+
+window.toggleCoinPause = function(sym) {
+    if (!AutoEngine.state.pausedCoins) AutoEngine.state.pausedCoins = {};
+    AutoEngine.state.pausedCoins[sym] = !AutoEngine.state.pausedCoins[sym];
+    AutoEngine.saveState();
+    const btn = document.getElementById(`pause-btn-${sym}`);
+    if (btn) btn.textContent = AutoEngine.state.pausedCoins[sym] ? '▶️' : '⏸️';
+    showToast(`Auto-Trade untuk ${sym} ${AutoEngine.state.pausedCoins[sym] ? 'DIPAUSE' : 'DILANJUTKAN'}`);
 };
 
 window.toggleOrderInput = function(sym) {

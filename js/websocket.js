@@ -20,6 +20,10 @@ async function changeTimeframe(tf) {
                 const cObj = charts.get(sym);
                 if (cObj) { 
                     if (cObj.series) { cObj.series.setData(hist); cObj.chart.timeScale().fitContent(); }
+                    if (cObj.rsiSeries) {
+                        const rsiData = calcRSI(hist, 14).map((val, idx) => ({time: hist[idx].time, value: val}));
+                        cObj.rsiSeries.setData(rsiData.filter(d => d.value > 0));
+                    }
                     analyzeQuantum(sym, hist, tf, false, true); 
                 }
             }
@@ -86,7 +90,12 @@ function handleStream(sym, candle) {
     }
 
     const cObj = charts.get(sym);
-    if (cObj && cObj.series) requestAnimationFrame(() => { try { cObj.series.update(candle); } catch (e) {} });
+    if (cObj && cObj.series) requestAnimationFrame(() => { 
+        try { 
+            cObj.series.update(candle); 
+            if (cObj.rsiSeries) { const rsiArr = calcRSI(arr, 14); cObj.rsiSeries.update({ time: candle.time, value: rsiArr[rsiArr.length-1] }); }
+        } catch (e) {} 
+    });
     
     const now = Date.now();
     const lastCalc = lastCalcTime.get(sym) || 0;
