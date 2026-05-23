@@ -167,6 +167,11 @@ const AutoEngine = {
         if (this.state.availableBalance < 2) return;
 
         if (res.signal === 'BUY' || res.signal === 'SELL') {
+            // REVISI: Filter Akhir Pekan (Sabtu = 6, Minggu = 0)
+            const day = new Date().getDay();
+            const isWeekend = (day === 0 || day === 6);
+            if (isWeekend) return; // Larang Open Posisi baru saat Weekend
+
             // REVISI: Eksekusi lebih cepat untuk mengejar awal mula trend breakout
             if (res.confidence >= 60) {
                 const riskReward = Math.abs(currentPrice - res.target) / (Math.abs(currentPrice - res.stopLoss) || 1);
@@ -213,7 +218,8 @@ const AutoEngine = {
             isAuto: true, type: type, entry: price, size: positionSize, positionValue: positionValueUsd,
             sl: sl, tp: tp, leverage: safeLeverage, margin: 'Isolated', marginUsd: marginRequired,
             liqPrice: liqPrice, unrealizedPnl: 0, roi: 0, bucket: bucket, time: Date.now(),
-            highestPrice: price, lowestPrice: price, atrAtEntry: atr
+            highestPrice: price, lowestPrice: price, atrAtEntry: atr,
+            partialClosed: false
         };
         this.syncPositions();
         this.updateEquity(); 
@@ -253,6 +259,12 @@ const AutoEngine = {
 
         if (isLong) {
             const priceMoveAtr = (currentPrice - pos.entry) / atr;
+            // REVISI: Take Profit Partial (50%) saat untung mencapai 2 ATR
+            if (priceMoveAtr > 2.0 && !pos.partialClosed) {
+                this.closePartialTrade(sym, currentPrice, 0.5, 'Take Profit Partial (50%)');
+                pos.partialClosed = true;
+            }
+            
             // REVISI: Advanced Multi-Stage Trailing Stop (Kunci profit maksimum)
             if (priceMoveAtr > 4.0) {
                 const newTrailingSl = pos.highestPrice - (atr * 0.5); // Super ketat saat profit meledak
@@ -265,6 +277,11 @@ const AutoEngine = {
             }
         } else {
             const priceMoveAtr = (pos.entry - currentPrice) / atr;
+            if (priceMoveAtr > 2.0 && !pos.partialClosed) {
+                this.closePartialTrade(sym, currentPrice, 0.5, 'Take Profit Partial (50%)');
+                pos.partialClosed = true;
+            }
+            
             if (priceMoveAtr > 4.0) {
                 const newTrailingSl = pos.lowestPrice + (atr * 0.5);
                 if (newTrailingSl < pos.sl) pos.sl = newTrailingSl; 
@@ -347,6 +364,45 @@ const AutoEngine = {
             });
         } else {
             showToast(`🤖 [CLOSED] ${sym} (${reason}). Realized: <b style="color:${realizedPnlUsd >= 0 ? 'var(--binance-green)' : 'var(--binance-red)'}">${realizedPnlUsd > 0 ? '+' : ''}${realizedPnlUsd.toFixed(2)} USDT</b>`);
+        }
+        if (typeof playAlertSound === 'function') playAlertSound('CLOSE');
+        renderPosBox(sym);
+    },
+
+    closePartialTrade(sym, exitPrice, fraction, reason) {
+        const pos = userPositions[sym];
+        if(!pos) return;
+
+        const closedSize = pos.size * fraction;
+        const closedMargin = pos.marginUsd * fraction;
+        const realizedPnlUsd = pos.type === 'BUY' ? (exitPrice - pos.entry) * closedSize : (pos.entry - exitPrice) * closedSize;
+        
+        this.state.balance += realizedPnlUsd;
+        this.state.usedMargin -= closedMargin;
+        pos.size -= closedSize; // Sisakan 50%
+        pos.marginUsd -= closedMargin; // Sisakan margin 50%
+        
+        if (realizedPnlUsd > 0) {
+            this.state.metrics.totalProfitUsd += realizedPnlUsd;
+        } else {
+            this.state.metrics.totalLossUsd += Math.abs(realizedPnlUsd);
+        }
+
+        this.state.history.push({
+            time: new Date().toLocaleString('id-ID'), sym: sym, type: pos.type, entry: pos.entry,
+            exit: exitPrice, size: closedSize, pnlUsd: realizedPnlUsd, roiPct: (realizedPnlUsd / closedMargin) * 100,
+            reason: reason, leverage: pos.leverage, marginUsd: closedMargin
+        });
+
+        this.syncPositions();
+        this.updateEquity(); 
+        this.saveState();
+
+        if (this.mode === 'LIVE') {
+            showToast(`🚀 [LIVE SIGNAL SENT] PARTIAL CLOSE 50% ${sym}`);
+            this.sendWebhook({ action: 'PARTIAL_CLOSE', symbol: sym, type: pos.type, fraction: fraction, reason: reason });
+        } else {
+            showToast(`🤖 [PARTIAL CLOSE 50%] ${sym}. Realized: <b style="color:${realizedPnlUsd >= 0 ? 'var(--binance-green)' : 'var(--binance-red)'}">${realizedPnlUsd > 0 ? '+' : ''}${realizedPnlUsd.toFixed(2)} USDT</b>`);
         }
         if (typeof playAlertSound === 'function') playAlertSound('CLOSE');
         renderPosBox(sym);
