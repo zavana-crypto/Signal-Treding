@@ -510,15 +510,6 @@ window.closeAllPositions = function() {
     AutoEngine.closeAllPositions();
 };
 
-window.toggleCoinPause = function(sym) {
-    if (!AutoEngine.state.pausedCoins) AutoEngine.state.pausedCoins = {};
-    AutoEngine.state.pausedCoins[sym] = !AutoEngine.state.pausedCoins[sym];
-    AutoEngine.saveState();
-    const btn = document.getElementById(`pause-btn-${sym}`);
-    if (btn) btn.textContent = AutoEngine.state.pausedCoins[sym] ? '▶️' : '⏸️';
-    showToast(`Auto-Trade untuk ${sym} ${AutoEngine.state.pausedCoins[sym] ? 'DIPAUSE' : 'DILANJUTKAN'}`);
-};
-
 window.toggleOrderInput = function(sym) {
     const type = document.getElementById(`pos-type-${sym}`).value;
     const input = document.getElementById(`pos-entry-input-${sym}`);

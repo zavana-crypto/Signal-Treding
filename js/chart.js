@@ -26,8 +26,6 @@ function renderGrid() {
         if (s === "XAUTUSDT") icon = "https://s2.coinmarketcap.com/static/img/coins/64x64/5186.png"; 
         const isGold = s === "PAXGUSDT" || s === "XAUTUSDT";
          
-        const isPaused = AutoEngine.state.pausedCoins && AutoEngine.state.pausedCoins[s];
-        const pauseIcon = isPaused ? '▶️' : '⏸️';
         const card = document.createElement('div'); card.className = 'card'; card.id = `card-${s}`;
         const tfDots = TIMEFRAMES.map(t => `<div id="mtx-${s}-${t.label}" class="m-dot" title="Switch to ${t.label}" onclick="quickSwitchTF('${t.label}')"></div>`).join('');
 
@@ -37,7 +35,7 @@ function renderGrid() {
                 <div class="coin-meta">
                     <img src="${icon}" class="coin-icon" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjRkNENTM1Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMiIvPjwvc3ZnPg=='">
                     <div>
-                        <div class="coin-title" style="${isGold ? 'color:var(--gold)' : ''}">${base}/USDT <span id="pause-btn-${s}" onclick="toggleCoinPause('${s}')" style="cursor:pointer; font-size:12px; margin-left:6px; opacity:0.7;" title="Pause/Resume Auto Trade">${pauseIcon}</span></div>
+                        <div class="coin-title" style="${isGold ? 'color:var(--gold)' : ''}">${base}/USDT</div>
                         <div class="coin-vol">Vol: <span id="vol-${s}">--</span> | Flow: <span id="delta-${s}" style="font-weight: bold;">--</span></div>
                     </div>
                 </div>
@@ -97,8 +95,7 @@ function renderGrid() {
             height: initHeight,
             layout: { background: { type: 'solid', color: '#0b0e11' }, textColor: '#848e9c', fontSize: 11, fontFamily: 'JetBrains Mono' }, 
             grid: { vertLines: { color: '#1e2329', style: 2 }, horzLines: { color: '#1e2329', style: 2 } },
-            rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.25 } },
-            leftPriceScale: { visible: true, borderVisible: false, scaleMargins: { top: 0.8, bottom: 0 } },
+            rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.1 } },
             timeScale: { visible: false, borderVisible: false }, 
             crosshair: { mode: ChartLib.CrosshairMode?.Normal || 0, vertLine: { width: 1, color: '#474d57', style: ChartLib.LineStyle?.Dashed || 0 }, horzLine: { width: 1, color: '#474d57', style: ChartLib.LineStyle?.Dashed || 0 } },
             localization: { priceFormatter: price => formatPrecision(price) }
@@ -121,7 +118,6 @@ function renderGrid() {
         const ema50Series = hasLineSeries ? chart.addLineSeries({ color: 'rgba(255, 165, 0, 0.8)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false }) : null;
         const ema200Series = hasLineSeries ? chart.addLineSeries({ color: 'rgba(41, 98, 255, 0.8)', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false }) : null;
         const vwapSeries = hasLineSeries ? chart.addLineSeries({ color: 'rgba(128, 0, 128, 0.6)', lineWidth: 1, lineStyle: ChartLib.LineStyle?.Dashed || 0, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false }) : null;
-        const rsiSeries = hasLineSeries ? chart.addLineSeries({ color: '#9c27b0', lineWidth: 1, priceScaleId: 'left', crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false }) : null;
         
         // REVISI: Sangat krusial jika library yang termuat adalah versi 3.x agar chart tidak menjadi 0x0
         new ResizeObserver(e => { 
@@ -132,7 +128,7 @@ function renderGrid() {
             }
         }).observe(cont);
         
-        charts.set(s, { chart, series, liqLowSeries, liqHighSeries, ema50Series, ema200Series, vwapSeries, rsiSeries });
+        charts.set(s, { chart, series, liqLowSeries, liqHighSeries, ema50Series, ema200Series, vwapSeries });
         marketData.set(s, []); renderPosBox(s);
     });
 }
