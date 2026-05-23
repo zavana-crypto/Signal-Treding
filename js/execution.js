@@ -2,7 +2,7 @@
    PATCH UTAMA: PROFESSIONAL PORTFOLIO & AUTO EXECUTION ENGINE
    =================================================================================== */
 const AutoEngine = {
-    isActive: false,
+    isActive: true,
     mode: 'PAPER', 
     maxRiskPerTradePct: 0.02, 
     
@@ -27,6 +27,24 @@ const AutoEngine = {
                 this.state = { ...this.state, ...parsed, metrics: { ...this.state.metrics, ...parsed.metrics }};
             } catch(e){}
         }
+
+        // LOAD STATUS AUTO-TRADE TERAKHIR (Memori)
+        const savedAuto = localStorage.getItem('zavana_auto_active');
+        if (savedAuto !== null) {
+            this.isActive = savedAuto === 'true';
+        } else {
+            this.isActive = true; // Otomatis aktif di awal
+        }
+        
+        // Sinkronisasi Switch UI
+        setTimeout(() => {
+            const toggle = document.getElementById('masterAutoToggle');
+            if (toggle) {
+                toggle.checked = this.isActive;
+                document.getElementById('autoStatusBar').style.display = this.isActive ? 'flex' : 'none';
+            }
+        }, 100);
+
         this.syncPositions();
         this.updateEquity(); 
     },
@@ -121,7 +139,8 @@ const AutoEngine = {
         if (this.state.availableBalance < 2) return;
 
         if (res.signal === 'BUY' || res.signal === 'SELL') {
-            if (res.confidence >= 65) {
+            // REVISI: Eksekusi lebih cepat untuk mengejar awal mula trend breakout
+            if (res.confidence >= 60) {
                 const riskReward = Math.abs(currentPrice - res.target) / (Math.abs(currentPrice - res.stopLoss) || 1);
                 if (riskReward >= 1.2) { 
                     this.executeTrade(sym, res.signal, currentPrice, res.stopLoss, res.target, tf.agg, res.confidence, atr);
@@ -194,19 +213,26 @@ const AutoEngine = {
 
         if (isLong) {
             const priceMoveAtr = (currentPrice - pos.entry) / atr;
-            if (priceMoveAtr > 3) {
-                const newTrailingSl = pos.highestPrice - (atr * 1.5);
+            // REVISI: Advanced Multi-Stage Trailing Stop (Kunci profit maksimum)
+            if (priceMoveAtr > 4.0) {
+                const newTrailingSl = pos.highestPrice - (atr * 0.5); // Super ketat saat profit meledak
                 if (newTrailingSl > pos.sl) pos.sl = newTrailingSl;
-            } else if (priceMoveAtr > 1.5) {
-                if (pos.sl < pos.entry) pos.sl = pos.entry + (atr * 0.1);
+            } else if (priceMoveAtr > 2.0) {
+                const newTrailingSl = pos.highestPrice - (atr * 1.0); // Kawal dengan jarak normal
+                if (newTrailingSl > pos.sl) pos.sl = newTrailingSl;
+            } else if (priceMoveAtr > 1.0) {
+                if (pos.sl < pos.entry) pos.sl = pos.entry + (atr * 0.05); // Segera amankan Breakeven
             }
         } else {
             const priceMoveAtr = (pos.entry - currentPrice) / atr;
-            if (priceMoveAtr > 3) {
-                const newTrailingSl = pos.lowestPrice + (atr * 1.5);
+            if (priceMoveAtr > 4.0) {
+                const newTrailingSl = pos.lowestPrice + (atr * 0.5);
                 if (newTrailingSl < pos.sl) pos.sl = newTrailingSl; 
-            } else if (priceMoveAtr > 1.5) {
-                if (pos.sl > pos.entry) pos.sl = pos.entry - (atr * 0.1);
+            } else if (priceMoveAtr > 2.0) {
+                const newTrailingSl = pos.lowestPrice + (atr * 1.0);
+                if (newTrailingSl < pos.sl) pos.sl = newTrailingSl; 
+            } else if (priceMoveAtr > 1.0) {
+                if (pos.sl > pos.entry) pos.sl = pos.entry - (atr * 0.05);
             }
         }
 
@@ -269,6 +295,7 @@ const AutoEngine = {
 
 window.toggleAutoTrading = function(isActive) {
     AutoEngine.isActive = isActive;
+    localStorage.setItem('zavana_auto_active', isActive);
     document.getElementById('autoStatusBar').style.display = isActive ? 'flex' : 'none';
     showToast(isActive ? "🤖 Mesin Portofolio Auto-Execution AKTIF." : "🛑 Mesin Auto-Execution DIMATIKAN.");
 };

@@ -188,12 +188,12 @@ function analyzeQuantum(sym, data, tf = CURRENT_TF, isBackground = false, fullSc
     if (cgProxies.liqImbalance === 'HEAVY_LONGS (Flush Down Potential)') { sellScore += 15; sellFactors.push('⚠️ Coinglass: Heavy Longs (Liquidation Target)'); }
 
     if (isTrending) {
-        if (pDI > mDI && pDI > 25) { 
-            if (isHighVolume) { buyScore += 10; buyFactors.push(`Momentum Valid & High Volume`); }
+        if (pDI > mDI && pDI > 20) { 
+            if (isHighVolume) { buyScore += 25; buyFactors.push(`🔥 EARLY MOMENTUM (Tancap Gas)`); }
             else { buyScore -= 15; buyFactors.push(`⚠️ Weak Momentum (Fake Breakout Risk)`); }
         }
-        if (mDI > pDI && mDI > 25) { 
-            if (isHighVolume) { sellScore += 10; sellFactors.push(`Momentum Valid & High Volume`); }
+        if (mDI > pDI && mDI > 20) { 
+            if (isHighVolume) { sellScore += 25; sellFactors.push(`🔥 EARLY MOMENTUM (Tancap Gas)`); }
             else { sellScore -= 15; sellFactors.push(`⚠️ Weak Momentum (Fake Breakout Risk)`); }
         }
     } else {
@@ -229,22 +229,32 @@ function analyzeQuantum(sym, data, tf = CURRENT_TF, isBackground = false, fullSc
     buyScore = Math.max(0, Math.min(100, buyScore));
     sellScore = Math.max(0, Math.min(100, sellScore));
 
+    // REVISI: Filter Smart Money - Hindari Beli tepat di bawah Resisten, atau Jual tepat di atas Support
+    if (buyScore > sellScore && orderBlk.obBear && (orderBlk.obBear.bottom - current.close) > 0 && (orderBlk.obBear.bottom - current.close) < atr) {
+        buyScore -= 20; buyFactors.push('🚫 Ruang gerak sempit: Terlalu dekat dengan Bearish Order Block');
+    }
+    if (sellScore > buyScore && orderBlk.obBull && (current.close - orderBlk.obBull.top) > 0 && (current.close - orderBlk.obBull.top) < atr) {
+        sellScore -= 20; sellFactors.push('🚫 Ruang gerak sempit: Terlalu dekat dengan Bullish Order Block');
+    }
+
+    // REVISI: Gesit menangkap momen! 
     const isVolatile = (current.high - current.low) > (atr * 1.5);
-    const baseThreshold = tf.agg <= 15 ? 55 : (tf.agg <= 240 ? 60 : 65);
-    const activeThreshold = isVolatile ? baseThreshold - 5 : baseThreshold + 5; 
+    const baseThreshold = tf.agg <= 15 ? 60 : (tf.agg <= 240 ? 65 : 70);
+    // Jika ada volatilitas mendadak, justru turunkan batas agar bot instan masuk (jangan telat)
+    const activeThreshold = isVolatile ? baseThreshold - 5 : baseThreshold; 
 
     let confidence = Math.max(buyScore, sellScore);
     let dominantDir = buyScore > sellScore ? 'LONG' : (sellScore > buyScore ? 'SHORT' : 'NEUTRAL');
     let signal = 'WAIT', subSignal = 'STANDBY';
     let activeFactors = dominantDir === 'LONG' ? buyFactors : sellFactors;
 
-    if (confidence >= activeThreshold + 15) {
+    if (confidence >= activeThreshold + 10) {
         signal = dominantDir === 'LONG' ? 'BUY' : 'SELL';
         subSignal = 'HIGH_CONFIDENCE';
     } else if (confidence >= activeThreshold) {
         signal = dominantDir === 'LONG' ? 'BUY' : 'SELL';
         subSignal = 'CONFIRMED';
-    } else if (confidence >= activeThreshold - 15) {
+    } else if (confidence >= activeThreshold - 10) {
         signal = 'WAIT';
         subSignal = 'PRE_SIGNAL'; 
     } else {
@@ -255,12 +265,16 @@ function analyzeQuantum(sym, data, tf = CURRENT_TF, isBackground = false, fullSc
     const currPrice = current.close;
     let stopLoss, target;
 
+    // REVISI: Perhitungan Take Profit Dinamis dengan Garansi Risk/Reward Minimal 2.5
+    // Memastikan 1 kali Profit bisa menutupi 2.5 kali Loss.
     if (dominantDir === 'LONG') {
-        stopLoss = sweeps.sweepBull ? (current.low - (atr * 0.2)) : (orderBlk.obBull ? Math.min(orderBlk.obBull.bottom, cgProxies.longLiq) : cgProxies.longLiq);
-        target = cgProxies.shortLiq > currPrice ? cgProxies.shortLiq : currPrice + (atr * 2);
+        stopLoss = (sweeps.sweepBull ? (current.low - (atr * 0.2)) : (orderBlk.obBull ? Math.min(orderBlk.obBull.bottom, cgProxies.longLiq) : cgProxies.longLiq)) - (atr * 0.5);
+        let desiredTarget = currPrice + Math.abs(currPrice - stopLoss) * 2.5;
+        target = Math.max(cgProxies.shortLiq > currPrice ? cgProxies.shortLiq : currPrice + (atr * 3), desiredTarget);
     } else {
-        stopLoss = sweeps.sweepBear ? (current.high + (atr * 0.2)) : (orderBlk.obBear ? Math.max(orderBlk.obBear.top, cgProxies.shortLiq) : cgProxies.shortLiq);
-        target = cgProxies.longLiq < currPrice ? cgProxies.longLiq : currPrice - (atr * 2);
+        stopLoss = (sweeps.sweepBear ? (current.high + (atr * 0.2)) : (orderBlk.obBear ? Math.max(orderBlk.obBear.top, cgProxies.shortLiq) : cgProxies.shortLiq)) + (atr * 0.5);
+        let desiredTarget = currPrice - Math.abs(currPrice - stopLoss) * 2.5;
+        target = Math.min(cgProxies.longLiq < currPrice ? cgProxies.longLiq : currPrice - (atr * 3), desiredTarget);
     }
 
     let aiNote = '', exitAdvice = 'NEUTRAL', actionColor = 'var(--text-secondary)';
