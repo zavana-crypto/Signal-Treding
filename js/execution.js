@@ -542,19 +542,25 @@ window.setPos = function(sym, actionType) {
             type: actionType || 'BUY', margin: marginMode, leverage: leverage 
         };
         localStorage.setItem('zavana_positions_lux', JSON.stringify(userPositions));
+            
+            if (AutoEngine.mode === 'LIVE') {
+                AutoEngine.sendWebhook({ action: 'OPEN', symbol: sym, type: actionType || 'BUY', price: val, leverage: leverage, marginUsd: simulatedMargin });
+                showToast(`🚀 [LIVE MANUAL] OPEN ${actionType || 'BUY'} ${sym} SENT!`);
+            } else {
+                showToast(`[MANUAL PAPER] Posisi ${sym} Berhasil Disimpan!`);
+            }
+            
         renderPosBox(sym);
         const hist = marketData.get(sym);
         if (hist) analyzeQuantum(sym, hist, CURRENT_TF, false, false);
-        showToast(`[MANUAL] Posisi ${sym} Berhasil Disimpan!`);
     }
 };
 
 window.clearPos = function(sym) {
-    delete userPositions[sym];
-    localStorage.setItem('zavana_positions_lux', JSON.stringify(userPositions));
-    AutoEngine.updateEquity(); 
-    renderPosBox(sym);
-    const hist = marketData.get(sym);
-    if (hist) analyzeQuantum(sym, hist, CURRENT_TF, false, false);
-    showToast(`Posisi ${sym} Ditutup`);
+        const pos = userPositions[sym];
+        if (!pos) return;
+        const currentPrice = pos.markPrice || (typeof analysisResults !== 'undefined' ? analysisResults.get(sym)?.price : pos.entry) || pos.entry;
+        
+        // Gunakan mesin AutoEngine untuk menutup agar tercatat di History dan Webhook terkirim
+        AutoEngine.closeTrade(sym, currentPrice, 'Ditutup Manual via Web');
 };
