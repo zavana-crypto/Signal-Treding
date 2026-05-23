@@ -325,6 +325,31 @@ window.renderReportDashboard = function() {
         activeBody.innerHTML = activeHtml || `<tr><td colspan="9" style="text-align:center;color:var(--text-secondary);">Tidak ada posisi aktif.</td></tr>`;
     }
 
+    // REVISI: Kalkulasi Performa Win Rate & Profit per Koin
+    const coinStats = {};
+    AutoEngine.state.history.forEach(item => {
+        if (!coinStats[item.sym]) coinStats[item.sym] = { trades: 0, wins: 0, pnl: 0 };
+        coinStats[item.sym].trades++;
+        if (item.pnlUsd > 0) coinStats[item.sym].wins++;
+        coinStats[item.sym].pnl += item.pnlUsd;
+    });
+
+    const perfBody = document.getElementById('coinPerformanceTable');
+    if (perfBody) {
+        let perfHtml = '';
+        Object.keys(coinStats).sort((a,b) => coinStats[b].pnl - coinStats[a].pnl).forEach(sym => {
+            const stat = coinStats[sym];
+            const wr = stat.trades > 0 ? ((stat.wins / stat.trades) * 100).toFixed(1) : '0.0';
+            perfHtml += `<tr>
+                <td><b style="color:var(--text-primary);">${sym}</b></td>
+                <td>${stat.trades} Trades</td>
+                <td><b style="color:${wr >= 60 ? 'var(--binance-green)' : (wr < 50 ? 'var(--binance-red)' : 'var(--warning)')}">${wr}%</b></td>
+                <td class="${stat.pnl >= 0 ? 'profit' : 'loss'}">${stat.pnl >= 0 ? '+' : ''}${formatPrecision(stat.pnl)}</td>
+            </tr>`;
+        });
+        perfBody.innerHTML = perfHtml || `<tr><td colspan="4" style="text-align:center;color:var(--text-secondary);">Belum ada data performa koin.</td></tr>`;
+    }
+
     const now = Date.now();
     const filteredHistory = AutoEngine.state.history.filter(item => {
         if (filter === 'all') return true;
