@@ -412,6 +412,23 @@ const AutoEngine = {
         renderPosBox(sym);
     },
 
+    closeAllPositions() {
+        if(confirm("🚨 EMERGENCY: Yakin ingin menutup SEMUA posisi aktif saat ini?")) {
+            let count = 0;
+            // Karena menghapus item dari objek saat di-loop bisa bermasalah, kita simpan keys-nya dulu
+            const symbols = Object.keys(userPositions);
+            for (let sym of symbols) {
+                const pos = userPositions[sym];
+                // Ambil harga terkini (mark price) atau fallback ke harga entry
+                const currentPrice = pos.markPrice || (typeof analysisResults !== 'undefined' ? analysisResults.get(sym)?.price : pos.entry) || pos.entry;
+                this.closeTrade(sym, currentPrice, 'EMERGENCY CLOSE ALL');
+                count++;
+            }
+            if (count > 0) showToast(`🛑 EMERGENCY: ${count} Posisi sedang ditutup!`);
+            else showToast("Tidak ada posisi aktif yang perlu ditutup.");
+        }
+    },
+
     updateUI() {
         const balEl = document.getElementById('navBalanceDisplay');
         if (balEl) balEl.textContent = `${this.state.equity.toFixed(2)} USDT`;
@@ -450,6 +467,10 @@ window.toggleTradingMode = function() {
         showToast("✅ KEMBALI KE PAPER TRADING");
     }
     localStorage.setItem('zavana_trading_mode', AutoEngine.mode);
+};
+
+window.closeAllPositions = function() {
+    AutoEngine.closeAllPositions();
 };
 
 window.toggleOrderInput = function(sym) {
