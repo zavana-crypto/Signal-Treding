@@ -228,8 +228,8 @@ const AutoEngine = {
         if (safeLeverage > 50) safeLeverage = 50; 
         if (safeLeverage < 1) safeLeverage = 1;
 
-        // REVISI: Fixed Margin $10 (Modal Maksimal $10 per posisi untuk keamanan Live Test)
-        let marginRequired = 10.0;
+        // REVISI: Fixed Margin $50 (Modal Maksimal $50 per posisi)
+        let marginRequired = 50.0;
         
         if (marginRequired > this.state.availableBalance) {
             marginRequired = this.state.availableBalance * 0.95; 
@@ -520,7 +520,7 @@ window.setPos = function(sym, actionType) {
     let val = orderType === 'MARKET' ? (analysisResults.get(sym)?.price || 0) : parseFloat(document.getElementById(`pos-entry-input-${sym}`).value);
     
     if (val > 0) {
-        const simulatedMargin = 10; 
+        const simulatedMargin = 50; 
         const posSize = (simulatedMargin * leverage) / val;
 
         userPositions[sym] = { 
